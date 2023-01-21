@@ -1,31 +1,36 @@
 const { XMLParser, XMLBuilder, XMLValidator} = require("fast-xml-parser");
 const http = require("http")
+var pino = require('pino')
+const dotenv = require('dotenv')
 
-const xmlFile = `<?xml version="1.0"?>
-<catalog>
-   <book id="bk101">
-      <author>Gambardella, Matthew</author>
-      <title>XML Developer's Guide</title>
-      <genre>Computer</genre>
-      <price>44.95</price>
-      <publish_date>2000-10-01</publish_date>
-      <description>An in-depth look at creating applications 
-      with XML.</description>
-   </BOOK>   
-</catalog>`;
+dotenv.config()
 
-http.get('http://passerelledi.defouest.fr/rest', function(result) {
-  result.on('data', function (data) {
-    console.log(data)
-    const parser = new XMLParser();
-    let jObj = parser.parse(data);
+const logger = pino({
+  level: process.env.LOG_LEVEL
+})
 
-    const builder = new XMLBuilder();
-    const xmlContent = builder.build(jObj);
-
-    console.log(jObj)
+http.get('http://passerelledi.defouest.fr/rest', function(res) {
+  var response_data = '';
+    res.setEncoding('utf8');
+    res.on('data', function(chunk) {
+        response_data += chunk;
     });
-  }).on('error', function(e) {
-  console.log('Got error: ' + e.message);
+    res.on('end', function() {
+      const parser = new XMLParser();
+      let jObj = parser.parse(response_data);
+        
+      jObj.class.contrat.forEach(element => {
+        const object={}
+        for (let x in element) {
+          object[x]=element[x].value.substring(1,element[x].value.length-1)          
+        }
+        logger.info({"event":"parse","object":object})
+
+      });
+    });
+    res.on('error', function(err) {
+        console.log('Got error: ' + err.message);
+    });
+
 });
 
